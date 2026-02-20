@@ -3,16 +3,7 @@
 
 import pandas as pd
 from sqlalchemy import create_engine
-from tqdm import tqdm
-
-
-import sys
-print(sys.executable)
-
-
-
-df = pd.read_csv(url)
-
+from tqdm.auto import tqdm
 
 dtype = {
     "VendorID": "Int64",
@@ -38,31 +29,23 @@ parse_dates = [
     "tpep_dropoff_datetime"
 ]
 
-df = pd.read_csv(
-    url,
-    dtype=dtype,
-    parse_dates=parse_dates
-)
-
-prefix = 'https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/'
-url = f'{prefix}/yellow_tripdata_{year}-{month:02d}.csv.gz'
-
-engine = create_engine(f'postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/{pg_db}')
-
-
-df.head(0).to_sql(name='yellow_taxi_data', con=engine, if_exists='replace')
-
 def run():
     pg_user = 'root'
     pg_pass = 'root'
     pg_host = 'localhost'
-    pg_port =  5433
-    pg_db   = 'ny_taxi'
-
+    pg_port = 5432
+    pg_db = 'ny_taxi'
 
     year = 2021
     month = 1
-    chunksize=100000
+
+    target_table = 'yellow_taxi_data'
+    
+    chunksize = 100000
+    prefix = 'https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/'
+    url = f'{prefix}/yellow_tripdata_{year}-{month:02d}.csv.gz'
+
+    engine = create_engine(f'postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/{pg_db}')
 
     df_iter = pd.read_csv(
         url,
@@ -72,75 +55,20 @@ def run():
         chunksize=chunksize,
     )
 
-df.head()
+    first = True
+    for df_chunk in tqdm(df_iter):
+        if first:
+            df_chunk.head(0).to_sql(
+                name=target_table,
+                con=engine,
+                if_exists='replace'
+            )
+            first = False
+        df_chunk.to_sql(
+            name=target_table,
+            con=engine,
+            if_exists='append'
+        )
 
-
-
-get_ipython().system('uv add sqlalchemy')
-
-
-
-get_ipython().system('uv add psycopg2-binary')
-
-
-
-
-print(pd.io.sql.get_schema(df, name='yellow_taxi_data', con=engine))
-
-
-
-df.to_sql(name='yellow_taxi_data', con=engine)
-
-
-
-
-df.head(0)
-
-
-
-
-
-
-
-
-len(df)
-
-
-
-
-
-
-
-df_iter
-
-
-
-
-
-
-
-# In[18]:
-
-
-for df_chunk in tqdm(df_iter, ascii=True):
-    df_chunk.to_sql(
-        name="yellow_taxi_data",
-        con=engine,
-        if_exists="append",
-        index=False,
-        method="multi"
-    )
-
-
-# In[ ]:
-
-
-import sys
-sys.executable
-
-
-# In[ ]:
-
-
-
-
+if __name__ == '__main__':
+    run()

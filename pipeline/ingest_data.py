@@ -4,6 +4,7 @@
 import pandas as pd
 from sqlalchemy import create_engine
 from tqdm.auto import tqdm
+import click
 
 dtype = {
     "VendorID": "Int64",
@@ -29,20 +30,19 @@ parse_dates = [
     "tpep_dropoff_datetime"
 ]
 
-def run():
-    pg_user = 'root'
-    pg_pass = 'root'
-    pg_host = 'localhost'
-    pg_port = 5432
-    pg_db = 'ny_taxi'
-
-    year = 2021
-    month = 1
-
-    target_table = 'yellow_taxi_data'
-    
-    chunksize = 100000
-    prefix = 'https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/'
+@click.command()
+@click.option('--pg-user', default='root', show_default=True, help='Postgres user')
+@click.option('--pg-pass', 'pg_pass', default='root', show_default=True, help='Postgres password')
+@click.option('--pg-host', default='localhost', show_default=True, help='Postgres host')
+@click.option('--pg-port', default=5432, type=int, show_default=True, help='Postgres port')
+@click.option('--pg-db', default='ny_taxi', show_default=True, help='Postgres database')
+@click.option('--year', default=2021, type=int, show_default=True, help='Data year')
+@click.option('--month', default=1, type=int, show_default=True, help='Data month (1-12)')
+@click.option('--target-table', default='yellow_taxi_data', show_default=True, help='Target table name')
+@click.option('--chunksize', default=100000, type=int, show_default=True, help='CSV read chunksize')
+def run(pg_user, pg_pass, pg_host, pg_port, pg_db, year, month, target_table, chunksize):
+    """Ingest NYC yellow taxi data into Postgres (chunked)."""
+    prefix = 'https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow'
     url = f'{prefix}/yellow_tripdata_{year}-{month:02d}.csv.gz'
 
     engine = create_engine(f'postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/{pg_db}')
@@ -56,7 +56,7 @@ def run():
     )
 
     first = True
-    for df_chunk in tqdm(df_iter):
+    for df_chunk in tqdm(df_iter, desc="ingesting"):
         if first:
             df_chunk.head(0).to_sql(
                 name=target_table,

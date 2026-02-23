@@ -13,12 +13,41 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d ny_taxi" ]
+      test: [ "CMD-SHELL", "pg_isready -U root -d ny_taxi" ]
       interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
+  ingest:
+    image: taxi_ingest:v001
+    depends_on:
+      - postgres
+    command: >
+      --pg-user=root
+      --pg-pass=root
+      --pg-host=postgres
+      --pg-port=5432
+      --pg-db=ny_taxi
+      --target-table=yellow_taxi_trips_2021_1
+      --chunksize=100000
+  
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "8085:80"
+    depends_on:
+      - postgres
+    restart: unless-stopped    
+
 volumes:
   ny_taxi_postgres_data:
     name: ny_taxi_postgres_data
+  pgadmin_data:
+    name: pgadmin_data
